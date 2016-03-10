@@ -1,0 +1,166 @@
+package ;
+
+import flash.display.Sprite;
+import flash.display.StageAlign;
+import flash.display.StageScaleMode;
+import flash.Lib;
+
+/**
+ * ...
+ * @author Josh Eklund
+ */
+
+class Minion
+{
+	var grid: Grid;
+	var row: Int;
+	var column: Int;
+	var size: Float;
+	var icon: Sprite;
+	var blueIcon: Sprite;
+	
+	var speed: Float;
+	var direction: Int;
+	
+	var desiredRow: Int;
+	var desiredColumn: Int;
+	var waiting: Bool;
+	
+	public function new(grid: Grid, row: Int, column: Int, speed: Float, direction: Int)
+	{
+		this.grid = grid;
+		this.row = row;
+		this.column = column;
+		size = grid.getCellSize();
+		icon = new Sprite();
+		blueIcon = new Sprite();
+		this.speed = speed;
+		this.direction = direction;
+		waiting = false;
+		draw();
+		pickDestination();
+	}
+	public function getSpeed()
+	{
+		return speed;
+	}
+	public function getX()
+	{
+		return icon.x + size / 2;
+	}
+	public function getY()
+	{
+		return icon.y + size / 2;
+	}
+	public function draw()
+	{
+		icon.x = grid.xAt(column);
+		icon.y = grid.yAt(row);
+		icon.graphics.beginFill(0xFF0000);
+		icon.graphics.drawCircle(size / 2, size / 2, size / 2); 
+		blueIcon.graphics.beginFill(0x0000FF);
+		blueIcon.graphics.drawCircle(size / 2, size / 2, size / 2);
+		blueIcon.alpha = 0;
+		Lib.current.stage.addChild(icon);
+		Lib.current.stage.addChild(blueIcon);
+	}
+	public function die()
+	{
+		if (Lib.current.stage.contains(icon))
+		//if (icon.alpha == 1)
+		{
+			grid.vacate(column, row);
+			grid.vacate(desiredColumn, desiredRow);
+			Lib.current.stage.removeChild(icon);
+			Lib.current.stage.removeChild(blueIcon);
+			//icon.alpha = 0.01;
+			grid.kill(this);
+		}
+	}
+	function pickDestination()
+	{
+		desiredRow = row;
+		desiredColumn = column;
+		switch (direction)
+		{
+			case 0: desiredColumn += 1;
+			case 1: desiredRow += 1;
+			case 2: desiredColumn -= 1;
+			case 3: desiredRow -= 1;
+		}
+		if (grid.outOfBounds(grid.xAt(desiredColumn), grid.yAt(desiredRow)))
+		{
+			changeDirectionRandomly();
+			pickDestination();
+		}
+		if (grid.isOccupied(desiredColumn, desiredRow)) wait();
+		grid.occupy(desiredColumn, desiredRow);
+	}
+	function wait()
+	{
+		desiredColumn = column;
+		desiredRow = row;
+	}
+	function approachDestination()
+	{
+		
+		var areWeThereYet = false;
+		var dx = grid.xAt(desiredColumn) - icon.x;
+		if (Math.abs(dx) < speed)
+		{
+			icon.x = grid.xAt(desiredColumn);
+			areWeThereYet = true;
+		}
+		else if (dx < 0)
+		{
+			icon.x -= speed;
+		}
+		else
+		{
+			icon.x += speed;
+		}
+		var dy = grid.yAt(desiredRow) - icon.y;
+		if (Math.abs(dy) < speed)
+		{
+			icon.y = grid.yAt(desiredRow);
+		}
+		else if (dy < 0)
+		{
+			icon.y -= speed;
+			areWeThereYet = false;
+		}
+		else
+		{
+			icon.y += speed;
+			areWeThereYet = false;
+		}
+		if (row == desiredRow && column == desiredColumn) { areWeThereYet = false; pickDestination(); }
+		if (areWeThereYet)
+		{
+			blueIcon.alpha += 0.01;
+			//speed += 0.01;
+			row = desiredRow;
+			column = desiredColumn;
+			grid.vacate(column, row);
+			if (blueIcon.alpha == 1) die();
+			//changeDirectionRandomly();
+			grid.trigger(column, row, this);
+			pickDestination();
+		}
+	}
+	public function update()
+	{
+		approachDestination();
+		blueIcon.x = icon.x;
+		blueIcon.y = icon.y;
+	}
+	public function changeDirection(newDirection: Int)
+	{
+		direction = newDirection;
+	}
+	function changeDirectionRandomly()
+	{
+		direction = Std.random(4);
+	}
+	
+}
